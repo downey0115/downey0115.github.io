@@ -31,6 +31,33 @@
     
     
     <entry>
+      <title>Sql为啥什么会慢？</title>
+      <link href="dc4a5a0392d5.html"/>
+      <url>dc4a5a0392d5.html</url>
+      
+        <content type="html"><![CDATA[<hr><p><strong>SQL 语句执行慢的原因是面试中经常会被问到的</strong>，对于服务端开发来说也是必须要关注的问题。总而言之，<strong>出了问题应该要做到心里有数</strong>。</p><p>在生产环境中，SQL 执行慢是很严重的事件。那么如何定位慢 SQL、慢的原因及如何防患于未然。接下来带着这些问题来开启本篇之旅！</p><p><img src="https://cdn.jsdelivr.net/gh/downey0115/CDN/post/20210119/2020011901.png" alt="图片"></p><p><strong>写操作</strong></p><p>作为后端开发，日常操作数据库最常用的是写操作和读操作。读操作我们下边会讲，这个分类里我们主要来看看写操作时为什么会导致 SQL 变慢。</p><p><strong>刷脏页</strong></p><p>脏页的定义是这样的：内存数据页和磁盘数据页不一致时，那么称这个内存数据页为脏页。</p><p>那为什么会出现脏页，刷脏页又怎么会导致 SQL 变慢呢？那就需要我们来看看写操作时的流程是什么样的。</p><p>对于一条写操作的 SQL 来说，执行的过程中涉及到写日志，内存及同步磁盘这几种情况。</p><p><img src="https://cdn.jsdelivr.net/gh/downey0115/CDN/post/20210119/2020011902.png" alt="图片"></p><p>这里要提到一个日志文件，那就是 redo log，位于存储引擎层，用来存储物理日志。在写操作的时候，存储引擎（这里讨论的是 Innodb）会将记录写入到 redo log 中，并更新缓存，这样更新操作就算完成了。后续操作存储引擎会在适当的时候把操作记录同步到磁盘里。</p><p>看到这里你可能会有个疑问，redo log 不是日志文件吗，日志文件就存储在磁盘上，那写的时候岂不很慢吗？</p><p>其实，写redo log 的过程是顺序写磁盘的，磁盘顺序写减少了寻道等时间，速度比随机写要快很多（ 类似Kafka存储原理），因此写 redo log 速度是很快的。</p><p>好了，让我们回到开始时候的问题，为什么会出现脏页，并且脏页为什么会使 SQL 变慢。你想想，redo log 大小是一定的，且是循环写入的。在高并发场景下，redo log 很快被写满了，但是数据来不及同步到磁盘里，这时候就会产生脏页，并且还会阻塞后续的写入操作。SQL 执行自然会变慢。</p><p><strong>锁</strong></p><p>写操作时 SQL 慢的另一种情况是可能遇到了锁，这个很容易理解。举个例子，你和别人合租了一间屋子，只有一个卫生间，你们俩同时都想去，但对方比你早了一丢丢。那么此时你只能等对方出来后才能进去。</p><p>对应到 Mysql 中，当某一条 SQL 所要更改的行刚好被加了锁，那么此时只有等锁释放了后才能进行后续操作。</p><p>但是还有一种极端情况，你的室友一直占用着卫生间，那么此时你该怎么整，总不能尿裤子吧，多丢人。对应到Mysql 里就是遇到了死锁或是锁等待的情况。这时候该如何处理呢？</p><p>Mysql 中提供了查看当前锁情况的方式：</p><p><img src="https://cdn.jsdelivr.net/gh/downey0115/CDN/post/20210119/2020011903.png" alt="图片"></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select * from information_schema.INNODB_TRX</span><br></pre></td></tr></table></figure><p>通过在命令行执行图中的语句，可以查看当前运行的事务情况，这里介绍几个查询结果中重要的参数：</p><p><img src="https://cdn.jsdelivr.net/gh/downey0115/CDN/post/20210119/2020011904.png" alt="图片"></p><p>当前事务如果等待时间过长或出现死锁的情况，可以通过 「<strong>kill 线程ID</strong>」 的方式释放当前的锁。</p><p>这里的线程 ID 指表中 <strong>trx_mysql_thread_id</strong> 参数。</p><p><strong>读操作</strong></p><p>说完了写操作，读操作大家可能相对来说更熟悉一些。SQL 慢导致读操作变慢的问题在工作中是经常会被涉及到的。</p><p><strong>慢查询</strong></p><p>在讲读操作变慢的原因之前我们先来看看是如何定位慢 SQL 的。Mysql 中有一个叫作<strong>慢查询日志</strong>的东西，它是用来记录超过指定时间的 SQL 语句的。默认情况下是关闭的，通过手动配置才能开启慢查询日志进行定位。</p><p>具体的配置方式是这样的：</p><ul><li>查看当前慢查询日志的开启情况：</li></ul><p><img src="https://cdn.jsdelivr.net/gh/downey0115/CDN/post/20210119/2020011905.png" alt="图片"></p><ul><li>开启慢查询日志（临时）：</li></ul><p><img src="https://cdn.jsdelivr.net/gh/downey0115/CDN/post/20210119/2020011906.png" alt="图片"></p><p><img src="https://cdn.jsdelivr.net/gh/downey0115/CDN/post/20210119/2020011907.png" alt="图片"></p><p>注意这里只是临时开启了慢查询日志，如果 mysql 重启后则会失效。可以 my.cnf 中进行配置使其永久生效。</p><p><strong>存在原因</strong></p><p>知道了如何查看执行慢的 SQL 了，那么我们接着看读操作时为什么会导致慢查询，这里列两点常见的原因。</p><p><strong>（1）未命中索引</strong></p><p>SQL 查询慢的原因之一是可能未命中索引，关于使用索引为什么能使查询变快以及使用时的注意事项，网上已经很多了，这里就不多赘述了。</p><p><strong>（2）脏页问题</strong></p><p>另一种还是我们上边所提到的刷脏页情况，只不过和写操作不同的是，是在读时候进行刷脏页的。</p><p>是不是有点懵逼，别急，听我娓娓道来：</p><p>为了避免每次在读写数据时访问磁盘增加 IO 开销，Innodb 存储引擎通过把相应的数据页和索引页加载到内存的缓冲池（buffer pool）中来提高读写速度。然后按照比如最近最少使用原则来保留缓冲池中的缓存数据。</p><p>那么当要读入的数据页不在内存中时，就需要到缓冲池中申请一个数据页，但缓冲池中数据页是一定的，当数据页达到上限时此时就需要把最久不使用的数据页从内存中淘汰掉。但如果淘汰的是脏页呢，那么就需要把脏页刷到磁盘里才能进行复用。</p><p>你看，又回到了刷脏页的情况，读操作时变慢你也能理解了吧？</p><p><strong>防患于未然</strong></p><p>知道了原因，我们如何来避免或缓解这种情况呢？</p><p>首先来看未命中索引的情况：</p><p>不知道大家有没有使用 Mysql 中 explain 的习惯，反正我是每次都会用它来查看下当前 SQL 命中索引的情况。避免其带来一些未知的隐患。</p><p>这里简单介绍下其使用方式，通过在所执行的 SQL 前加上 explain 就可以来分析当前 SQL 的执行计划：</p><p><img src="https://cdn.jsdelivr.net/gh/downey0115/CDN/post/20210119/2020011908.png" alt="图片"></p><p>执行后的结果对应的字段概要描述如下图所示：</p><p><img src="https://cdn.jsdelivr.net/gh/downey0115/CDN/post/20210119/2020011909.png" alt="图片"></p><p>这里需要重点关注以下几个字段：</p><p><strong>1、type</strong></p><p>表示 MySQL 在表中找到所需行的方式。其中常用的类型有：ALL、index、range、 ref、eq_ref、const、system、NULL 这些类型从左到右，性能逐渐变好。</p><ul><li>ALL：Mysql 遍历全表来找到匹配的行；</li></ul><ul><li>index：与 ALL 区别为 index 类型只遍历索引树；</li></ul><ul><li>range：只检索给定范围的行，使用一个索引来选择行；</li></ul><ul><li>ref：表示上述表的连接匹配条件，哪些列或常量被用于查找索引列上的值；</li></ul><ul><li>eq_ref：类似ref，区别在于使用的是否为唯一索引。对于每个索引键值，表中只有一条记录匹配，简单来说，就是多表连接中使用 primary key 或者 unique key作为关联条件；</li></ul><ul><li>const、system：当 Mysql 对查询某部分进行优化，并转换为一个常量时，使用这些类型访问。如将主键置于 where 列表中，Mysql 就能将该查询转换为一个常量，system 是 const类型的特例，当查询的表只有一行的情况下，使用system；</li></ul><ul><li>NULL：Mysql 在优化过程中分解语句，执行时甚至不用访问表或索引，例如从一个索引列里选取最小值可以通过单独索引查找完成。</li></ul><p><strong>2、possible_keys</strong></p><p>查询时可能使用到的索引（但不一定会被使用，没有任何索引时显示为 NULL）。</p><p><strong>3、key</strong></p><p>实际使用到的索引。</p><p><strong>4、rows</strong></p><p>估算查找到对应的记录所需要的行数。</p><p><strong>5、Extra</strong></p><p>比较常见的是下面几种：</p><ul><li>Useing index：表明使用了覆盖索引，无需进行回表；</li></ul><ul><li>Using where：不用读取表中所有信息，仅通过索引就可以获取所需数据，这发生在对表的全部的请求列都是同一个索引的部分的时候，表示mysql服务器将在存储引擎检索行后再进行过滤；</li></ul><ul><li>Using temporary：表示MySQL需要使用临时表来存储结果集，常见于排序和分组查询，常见 group by，order by；</li></ul><ul><li>Using filesort：当Query中包含 order by 操作，而且无法利用索引完成的排序操作称为“文件排序”。</li></ul><p>对于刷脏页的情况，我们需要控制脏页的比例，不要让它经常接近 75%。同时还要控制 redo log 的写盘速度，并且通过设置 innodb_io_capacity 参数告诉 InnoDB 你的磁盘能力。</p><p><strong>小 结</strong></p><p><strong>写操作</strong></p><ul><li>当 redo log 写满时就会进行刷脏页，此时写操作也会终止，那么 SQL 执行自然就会变慢。</li></ul><ul><li>遇到所要修改的数据行或表加了锁时，需要等待锁释放后才能进行后续操作，SQL 执行也会变慢。</li></ul><p><strong>读操作</strong></p><ul><li>读操作慢很常见的一个原因是未命中索引从而导致全表扫描，可以通过 explain 方式对 SQL 语句进行分析。</li></ul><ul><li>另一种原因是在读操作时，要读入的数据页不在内存中，需要通过淘汰脏页才能申请新的数据页从而导致执行变慢。</li></ul>]]></content>
+      
+      
+      <categories>
+          
+          <category> mysql </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> mysql </tag>
+            
+            <tag> java </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Butterfly 安裝文檔 主題頁面</title>
       <link href="9c273b1e3d41.html"/>
       <url>9c273b1e3d41.html</url>
