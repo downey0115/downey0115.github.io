@@ -18,7 +18,7 @@
     color: var(--font-color);
 }
 
-.aplayer .aplayer-lrc p {
+/*.aplayer .aplayer-lrc p {
   font-size:12px;
   font-weight:700;
   line-height:16px!important
@@ -32,4 +32,4 @@
 }
 .aplayer.aplayer-fixed.aplayer-narrow .aplayer-body:hover {
   left:0!important
-}
+}*/
