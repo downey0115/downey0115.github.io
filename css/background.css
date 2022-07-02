@@ -1,0 +1,35 @@
+#footer {
+    background: rgba(255,255,255,.15);
+    color: #000;
+    border-top-right-radius: 20px;
+    border-top-left-radius: 20px;
+    backdrop-filter: saturate(100%) blur(5px)
+}
+
+#footer::before {
+    background: rgba(255,255,255,.15)
+}
+
+#footer #footer-wrap {
+    color: var(--font-color);
+}
+
+#footer #footer-wrap a {
+    color: var(--font-color);
+}
+
+/*.aplayer .aplayer-lrc p {
+  font-size:12px;
+  font-weight:700;
+  line-height:16px!important
+}
+.aplayer .aplayer-lrc p.aplayer-lrc-current {
+  font-size:15px;
+  color:#49b1f5
+}
+.aplayer.aplayer-fixed.aplayer-narrow .aplayer-body {
+  left:-66px!important
+}
+.aplayer.aplayer-fixed.aplayer-narrow .aplayer-body:hover {
+  left:0!important
+}*/
